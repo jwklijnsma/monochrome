@@ -34,6 +34,7 @@ import {
     gaplessPlaybackSettings,
     analyticsSettings,
     modalSettings,
+    preferDolbyAtmosSettings,
 } from './storage.js';
 import { audioContextManager, EQ_PRESETS } from './audio-context.js';
 import { db } from './db.js';
@@ -220,10 +221,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             return;
         }
 
-        let authWindow = null;
-        if (!window.Neutralino) {
-            authWindow = window.open('', '_blank');
-        }
+        let authWindow = window.open('', '_blank');
 
         lastfmConnectBtn.disabled = true;
         lastfmConnectBtn.textContent = 'Opening Last.fm...';
@@ -231,16 +229,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         try {
             const { token, url } = await scrobbler.lastfm.getAuthUrl();
 
-            if (window.Neutralino) {
-                try {
-                    await Neutralino.os.open(url);
-                } catch (e) {
-                    // Fallback if os.open fails
-                    console.error('Neutralino open failed, falling back to window.open', e);
-                    if (!authWindow) authWindow = window.open(url, '_blank');
-                    else authWindow.location.href = url;
-                }
-            } else if (authWindow) {
+            if (authWindow) {
                 authWindow.location.href = url;
             } else {
                 alert('Popup blocked! Please allow popups.');
@@ -587,10 +576,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 return;
             }
 
-            let authWindow = null;
-            if (!window.Neutralino) {
-                authWindow = window.open('', '_blank');
-            }
+            let authWindow = window.open('', '_blank');
 
             librefmConnectBtn.disabled = true;
             librefmConnectBtn.textContent = 'Opening Libre.fm...';
@@ -598,9 +584,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             try {
                 const { token, url } = await scrobbler.librefm.getAuthUrl();
 
-                if (window.Neutralino) {
-                    await Neutralino.os.open(url);
-                } else if (authWindow) {
+                if (authWindow) {
                     authWindow.location.href = url;
                 } else {
                     alert('Popup blocked! Please allow popups.');
@@ -830,7 +814,6 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     if (downloadQualitySetting) {
         // Assign categories to the static (native) options already in the HTML
         const staticCategories = {
-            DOLBY_ATMOS: 'Spatial',
             HI_RES_LOSSLESS: 'Lossless',
             LOSSLESS: 'Lossless',
             HIGH: 'AAC',
@@ -857,7 +840,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             const m = text.match(/(\d+)\s*kbps/i);
             return m ? parseInt(m[1], 10) : Infinity;
         };
-        const categoryOrder = ['Spatial', 'Lossless', 'AAC', 'MP3', 'OGG'];
+        const categoryOrder = ['Lossless', 'AAC', 'MP3', 'OGG'];
         allOptions.sort((a, b) => {
             if (a.category == b.category && a.category === 'Lossless') return 0; // Preserve original order for lossless options
             const ai = categoryOrder.indexOf(a.category);
@@ -892,6 +875,14 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         downloadQualitySetting.addEventListener('change', (e) => {
             downloadQualitySettings.setQuality(e.target.value);
             updateLosslessContainerVisibility();
+        });
+    }
+
+    const prefersAtmosSetting = document.getElementById('dolby-atmos-toggle');
+    if (prefersAtmosSetting) {
+        prefersAtmosSetting.checked = preferDolbyAtmosSettings.isEnabled();
+        prefersAtmosSetting.addEventListener('change', (e) => {
+            preferDolbyAtmosSettings.setEnabled(e.target.checked);
         });
     }
 
@@ -996,7 +987,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         if (resetSavedFolderSetting) {
             let showReset = false;
             if (isFolderMethod && hasFolderPicker && modernSettings.rememberBulkDownloadFolder) {
-                const savedHandle = await db.getSetting('bulk_download_folder_handle');
+                const savedHandle = modernSettings.bulkDownloadFolder;
                 showReset = !!savedHandle;
             }
             resetSavedFolderSetting.style.display = showReset ? '' : 'none';
@@ -1037,20 +1028,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 if (!existingHandle) {
                     let picked = false;
                     try {
-                        const isNeutralino =
-                            window.Neutralino && (window.NL_MODE || window.location.search.includes('mode=neutralino'));
-                        if (isNeutralino) {
-                            const path = await window.Neutralino.os.showFolderDialog('Select Local Media Folder');
-                            if (path) {
-                                picked = true;
-                                const handle = {
-                                    name: path.split(/[/\\]/).pop() || path,
-                                    isNeutralino: true,
-                                    path,
-                                };
-                                await db.saveSetting('local_folder_handle', handle);
-                            }
-                        } else if (hasFolderPicker) {
+                        if (hasFolderPicker) {
                             const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
                             if (handle) {
                                 picked = true;
@@ -1094,7 +1072,8 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     if (resetSavedFolderBtn) {
         resetSavedFolderBtn.addEventListener('click', async () => {
-            await db.saveSetting('bulk_download_folder_handle', null);
+            modernSettings.bulkDownloadFolder = null;
+            await modernSettings.waitPending();
             await updateFolderMethodVisibility();
         });
     }
@@ -1114,7 +1093,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     }
 
     updateForceZipBlobVisibility();
-    updateFolderMethodVisibility();
+    await updateFolderMethodVisibility();
 
     const includeCoverToggle = document.getElementById('include-cover-toggle');
     if (includeCoverToggle) {
@@ -2611,6 +2590,23 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         observer.observe(appearanceTabContent, { attributes: true });
     }
 
+    // Watch for downloads tab becoming active and update setting visibility
+    const downloadsTabContent = document.getElementById('settings-tab-downloads');
+    if (downloadsTabContent) {
+        const observer = new MutationObserver(async (mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (downloadsTabContent.classList.contains('active')) {
+                        console.log('[Settings] Downloads tab became active, updating setting visibility');
+                        updateForceZipBlobVisibility();
+                        await updateFolderMethodVisibility();
+                    }
+                }
+            }
+        });
+        observer.observe(downloadsTabContent, { attributes: true });
+    }
+
     // Visualizer Mode Select
     const visualizerModeSelect = document.getElementById('visualizer-mode-select');
     if (visualizerModeSelect) {
@@ -3722,6 +3718,8 @@ function initializeBlockedContentManager() {
                 e.stopPropagation();
                 const id = btn.dataset.id;
                 const type = btn.dataset.type;
+                const itemLi = btn.closest('li');
+                const itemName = itemLi ? itemLi.querySelector('.item-name').textContent : 'item';
 
                 if (type === 'artist') {
                     contentBlockingSettings.unblockArtist(id);
@@ -3729,6 +3727,10 @@ function initializeBlockedContentManager() {
                     contentBlockingSettings.unblockAlbum(id);
                 } else if (type === 'track') {
                     contentBlockingSettings.unblockTrack(id);
+                }
+
+                if (typeof showNotification === 'function') {
+                    showNotification(`Unblocked ${type}: ${itemName}`);
                 }
 
                 renderBlockedLists();

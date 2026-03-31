@@ -40,7 +40,7 @@ async function loadFFmpeg(loadOptions = {}) {
         ffmpeg = new FFmpeg();
 
         ffmpeg.on('log', ({ message }) => {
-            self.postMessage({ type: 'log', message });
+            self.postMessage({ type: 'log', stage: 'stdout', message });
 
             // Try to extract total duration from input log
             if (totalDurationSeconds === null) {
@@ -123,8 +123,8 @@ self.onmessage = async (e) => {
                 await ffmpeg.writeFile(file.name, new Uint8Array(file.data));
             }
 
-            const ffmpegArgs = ['-i', 'input', ...args, output.name];
-            self.postMessage({ type: 'log', message: `FFmpeg command: ffmpeg ${ffmpegArgs.join(' ')}` });
+            const ffmpegArgs = ['-i', 'input', ...args, ...(output.name ? [output.name] : [])];
+            self.postMessage({ type: 'command', command: ffmpegArgs });
 
             const exitCode = await ffmpeg.exec(ffmpegArgs);
 
@@ -134,7 +134,7 @@ self.onmessage = async (e) => {
 
             self.postMessage({ type: 'progress', stage: 'finalizing', message: encodeEndMessage, progress: 100.0 });
 
-            const data = await ffmpeg.readFile(output.name);
+            const data = output.name ? await ffmpeg.readFile(output.name) : [];
             const outputBlob = new Blob([data], { type: output.mime });
 
             self.postMessage({ type: 'complete', blob: outputBlob });
@@ -152,7 +152,9 @@ self.onmessage = async (e) => {
                 }
             }
             try {
-                await ffmpeg.deleteFile(output.name);
+                if (output.name) {
+                    await ffmpeg.deleteFile(output.name);
+                }
             } catch {
                 self.postMessage({ type: 'log', message: `Failed to delete ${output.name} from FFmpeg FS.` });
             }

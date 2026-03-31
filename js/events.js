@@ -15,7 +15,7 @@ import {
     waveformSettings,
     keyboardShortcuts,
 } from './storage.js';
-import { showNotification, downloadTrackWithMetadata, downloadAlbumAsZip, downloadPlaylistAsZip } from './downloads.js';
+import { showNotification, downloadTrackWithMetadata, downloadAlbum, downloadPlaylist } from './downloads.js';
 import { downloadQualitySettings } from './storage.js';
 import { updateTabTitle, navigate } from './router.js';
 import { db } from './db.js';
@@ -1238,7 +1238,7 @@ export async function handleTrackAction(
 
             if (action === 'download') {
                 if (type === 'album') {
-                    await downloadAlbumAsZip(
+                    await downloadAlbum(
                         collectionItem,
                         tracks,
                         api,
@@ -1246,7 +1246,7 @@ export async function handleTrackAction(
                         lyricsManager
                     );
                 } else {
-                    await downloadPlaylistAsZip(
+                    await downloadPlaylist(
                         collectionItem,
                         tracks,
                         api,
@@ -1858,8 +1858,9 @@ export async function handleTrackAction(
     } else if (action === 'block-album') {
         const { contentBlockingSettings } = await import('./storage.js');
         const albumId = type === 'album' ? item.id : item.album?.id;
-        const albumTitle = type === 'album' ? item.title : item.album?.title;
-        const albumArtist = type === 'album' ? item.artist : item.album?.artist;
+        const albumTitle = type === 'album' ? item.title || item.name : item.album?.title || item.album?.name;
+        const albumArtist =
+            type === 'album' ? item.artist?.name || item.artist : item.album?.artist?.name || item.album?.artist;
 
         if (!albumId) {
             showNotification('No album information available');

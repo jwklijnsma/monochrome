@@ -1432,28 +1432,6 @@
             </div>
         </div>
 
-        <div id="maintenance-modal" class="modal">
-            <div class="modal-overlay"></div>
-            <div class="modal-content" style="text-align: center">
-                <h3 style="color: #ef4444; display: flex; align-items: center; gap: 0.5rem; justify-content: center">
-                    <use svg="!lucide/wrench.svg" size="24" />
-                    Maintenance Notice
-                </h3>
-                <p style="margin: 1.5rem 0; line-height: 1.6; font-size: 1.1rem">
-                    The desktop version of Monochrome is currently undergoing essential maintenance to address critical
-                    issues.
-                </p>
-                <p style="margin-bottom: 2rem; color: var(--muted-foreground); line-height: 1.5">
-                    Downloads are temporarily disabled while we work on fixing these issues. Please check back later.
-                </p>
-                <div class="modal-actions" style="justify-content: center">
-                    <button id="maintenance-home-btn" class="btn-primary" style="padding: 0.75rem 2rem">
-                        Back to Home
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <div id="desktop-update-modal" class="modal">
             <div class="modal-overlay"></div>
             <div class="modal-content">
@@ -1626,12 +1604,6 @@
                                         <a href="https://github.com/monochrome-music/monochrome" target="_blank">
                                             <use svg="./images/github.svg" size="24" />
                                             <span>GitHub</span>
-                                        </a>
-                                    </li>
-                                    <li class="nav-item" id="sidebar-nav-download-bottom">
-                                        <a href="/download">
-                                            <use svg="!lucide/download.svg" size="24" />
-                                            <span>Download</span>
                                         </a>
                                     </li>
                                 </ul>
@@ -3211,18 +3183,6 @@
                                     </div>
                                     <div class="setting-item">
                                         <div class="info">
-                                            <span class="label">Show Download in Sidebar</span>
-                                            <span class="description"
-                                                >Display the Download link in the sidebar navigation</span
-                                            >
-                                        </div>
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" id="sidebar-show-download-bottom-toggle" checked />
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="setting-item">
-                                        <div class="info">
                                             <span class="label">Show Discord in Sidebar</span>
                                             <span class="description"
                                                 >Display the Discord link in the sidebar navigation</span
@@ -4116,6 +4076,49 @@
                     <div class="settings-tab-content" id="settings-tab-downloads">
                         <div class="settings-list">
                             <div class="settings-group">
+                                <div>
+                                    <div class="setting-item">
+                                        <div class="info">
+                                            <span class="label">Download Quality</span>
+                                            <span class="description">Quality for track downloads</span>
+                                        </div>
+                                        <select id="download-quality-setting">
+                                            <option value="HI_RES_LOSSLESS">Hi-Res Lossless (24-bit)</option>
+                                            <option value="LOSSLESS">Lossless (16-bit)</option>
+                                            <option value="HIGH">AAC 320kbps</option>
+                                            <option value="LOW">AAC 96kbps</option>
+                                        </select>
+                                    </div>
+                                    <div class="setting-item" id="hi-res-download-warning" style="display: none">
+                                        <div class="info setting-details">
+                                            <span class="description">
+                                                24-bit downloads may crash the browser on some devices, or be missing
+                                                metadata.
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Dolby Atmos</span>
+                                        <span class="description">Prefer Dolby Atmos tracks when available</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="dolby-atmos-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Lossless Container</span>
+                                        <span class="description">Container format for lossless downloads</span>
+                                    </div>
+                                    <select id="lossless-container-setting">
+                                        <option value="nochange">Don't change</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">
                                         <span class="label">Bulk Download Method</span>
@@ -4175,6 +4178,8 @@
                                         <span class="slider"></span>
                                     </label>
                                 </div>
+                            </div>
+                            <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">
                                         <span class="label">Download Lyrics</span>
@@ -4198,38 +4203,6 @@
                                         <input type="checkbox" id="romaji-lyrics-toggle" />
                                         <span class="slider"></span>
                                     </label>
-                                </div>
-                                <div>
-                                    <div class="setting-item">
-                                        <div class="info">
-                                            <span class="label">Download Quality</span>
-                                            <span class="description">Quality for track downloads</span>
-                                        </div>
-                                        <select id="download-quality-setting">
-                                            <option value="DOLBY_ATMOS">Dolby Atmos (MP4)</option>
-                                            <option value="HI_RES_LOSSLESS">Hi-Res Lossless (24-bit)</option>
-                                            <option value="LOSSLESS">Lossless (16-bit)</option>
-                                            <option value="HIGH">AAC 320kbps</option>
-                                            <option value="LOW">AAC 96kbps</option>
-                                        </select>
-                                    </div>
-                                    <div class="setting-item" id="hi-res-download-warning" style="display: none">
-                                        <div class="info setting-details">
-                                            <span class="description">
-                                                24-bit downloads may crash the browser on some devices, or be missing
-                                                metadata.
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="setting-item">
-                                    <div class="info">
-                                        <span class="label">Lossless Container</span>
-                                        <span class="description">Container format for lossless downloads</span>
-                                    </div>
-                                    <select id="lossless-container-setting">
-                                        <option value="nochange">Don't change</option>
-                                    </select>
                                 </div>
                                 <div class="setting-item">
                                     <div class="info">
@@ -4434,15 +4407,6 @@
                                         <span class="slider"></span>
                                     </label>
                                 </div>
-                                <div class="setting-item" id="desktop-update-container" style="display: none">
-                                    <div class="info">
-                                        <span class="label">Desktop Update</span>
-                                        <span class="description">Check for updates to the desktop application</span>
-                                    </div>
-                                    <button id="check-desktop-updates-btn" class="btn-secondary">
-                                        Check for Updates
-                                    </button>
-                                </div>
                                 <div class="setting-item">
                                     <div class="info">
                                         <span class="label">Analytics</span>
@@ -4537,7 +4501,74 @@
                                         </button>
                                     </div>
                                 </div>
+                                <div
+                                    id="blocked-content-list"
+                                    style="
+                                        display: none;
+                                        margin-top: 1rem;
+                                        border-top: 1px solid var(--border);
+                                        padding-top: 1rem;
+                                    "
+                                >
+                                    <div
+                                        id="blocked-empty-message"
+                                        style="text-align: center; color: var(--muted-foreground); padding: 1rem"
+                                    >
+                                        No content blocked yet.
+                                    </div>
+
+                                    <div id="blocked-artists-section" style="margin-bottom: 1.5rem; display: none">
+                                        <h4
+                                            style="
+                                                font-size: 0.875rem;
+                                                font-weight: 600;
+                                                margin-bottom: 0.5rem;
+                                                color: var(--foreground);
+                                            "
+                                        >
+                                            Blocked Artists
+                                        </h4>
+                                        <ul id="blocked-artists-list" class="blocked-items-list"></ul>
+                                    </div>
+
+                                    <div id="blocked-albums-section" style="margin-bottom: 1.5rem; display: none">
+                                        <h4
+                                            style="
+                                                font-size: 0.875rem;
+                                                font-weight: 600;
+                                                margin-bottom: 0.5rem;
+                                                color: var(--foreground);
+                                            "
+                                        >
+                                            Blocked Albums
+                                        </h4>
+                                        <ul id="blocked-albums-list" class="blocked-items-list"></ul>
+                                    </div>
+
+                                    <div id="blocked-tracks-section" style="margin-bottom: 1.5rem; display: none">
+                                        <h4
+                                            style="
+                                                font-size: 0.875rem;
+                                                font-weight: 600;
+                                                margin-bottom: 0.5rem;
+                                                color: var(--foreground);
+                                            "
+                                        >
+                                            Blocked Tracks
+                                        </h4>
+                                        <ul id="blocked-tracks-list" class="blocked-items-list"></ul>
+                                    </div>
+                                </div>
                             </div>
+                            <p
+                                id="settings-commit-info"
+                                style="
+                                    text-align: center;
+                                    color: var(--muted-foreground);
+                                    font-size: 0.75rem;
+                                    padding: 1rem 0 0.5rem;
+                                "
+                            ></p>
                         </div>
                     </div>
                 </div>
@@ -4609,6 +4640,7 @@
                         </p>
                         <div class="about-footer">
                             <p class="version">Version 2.5.0</p>
+                            <p class="version" id="about-commit-info"></p>
                             <p class="disclaimer">
                                 This is an independent client and is not affiliated with or endorsed by TIDAL or any
                                 music streaming service.
@@ -4645,6 +4677,8 @@
                             "
                         >
                             <button id="auth-connect-btn" class="btn-secondary">Connect with Google</button>
+                            <button id="auth-github-btn" class="btn-secondary">Connect with GitHub</button>
+                            <button id="auth-discord-btn" class="btn-secondary">Connect with Discord</button>
                             <button id="toggle-email-auth-btn" class="btn-secondary">Connect with Email</button>
                             <button id="view-my-profile-btn" class="btn-secondary" style="display: none">
                                 View My Profile
@@ -4678,49 +4712,6 @@
                                 >Advanced: Custom Configuration</a
                             >
                         </div>
-                    </div>
-                </div>
-                <div id="page-download" class="page">
-                    <h2 class="section-title" style="text-align: center">Monochrome Official App</h2>
-                    <div class="download-content">
-                        <p style="text-align: center" class="account-description">
-                            Install the Monochrome Desktop App for a refined & improved music listening experience.
-                        </p>
-                        <br /><br />
-
-                        <div class="download-buttons-icons">
-                            <div class="download-buttons-icons-windows" style="display: flex; justify-content: center">
-                                <use svg="./images/windows.svg" size="96" />
-                            </div>
-                            <br />
-                            <div style="display: flex; justify-content: center">
-                                <a
-                                    id="download-windows-btn"
-                                    class="btn-secondary"
-                                    href="https://downloads.samidy.com/out_delivery/monochrome-windows.zip"
-                                    >Download Windows Version</a
-                                >
-                            </div>
-                            <br />
-                            <div class="download-buttons-icons-linux" style="display: flex; justify-content: center">
-                                <use svg="./images/linux.svg" size="96" />
-                            </div>
-                            <br />
-                            <div style="display: flex; justify-content: center">
-                                <a
-                                    id="download-linux-btn"
-                                    class="btn-secondary"
-                                    href="https://downloads.samidy.com/out_delivery/monochrome-linux.zip"
-                                    >Download Linux Version</a
-                                >
-                            </div>
-                            <br />
-                        </div>
-                        <br />
-                        <h4 style="text-align: center; padding-top: 15px; color: #8b8b93">
-                            The App is still in Beta. Please report any issues in our
-                            <a href="discord.html" style="text-decoration: underline">Discord server.</a>
-                        </h4>
                     </div>
                 </div>
                 <div id="page-donate" class="page">

@@ -493,7 +493,10 @@ export class Player {
             const isPodcast = track.isPodcast || (track.id && String(track.id).startsWith('podcast_'));
             if (track.isLocal || isTracker || isPodcast || (track.audioUrl && !track.isLocal)) continue;
             try {
-                const streamInfo = await this.api.getStreamUrl(track.id, this.quality);
+                const streamInfo =
+                    track.type == 'video'
+                        ? await this.api.getVideoStreamUrl(track.id)
+                        : await this.api.getStreamUrl(track.id, this.quality);
 
                 if (this.preloadAbortController.signal.aborted) break;
 
@@ -801,7 +804,6 @@ export class Player {
         this.updatePlayingTrackIndicator();
         this.updateMediaSession(track);
         this.updateMediaSessionPlaybackState();
-        this.updateNativeWindow(track);
 
         try {
             let streamUrl;
@@ -2069,17 +2071,5 @@ export class Player {
 
         updateBtn(timerBtn);
         updateBtn(timerBtnDesktop);
-    }
-
-    async updateNativeWindow(track) {
-        if (!window.Neutralino) return;
-
-        const trackTitle = getTrackTitle(track);
-        const artist = getTrackArtists(track);
-        try {
-            await Neutralino.window.setTitle(`${trackTitle} • ${artist}`);
-        } catch (e) {
-            console.error('Failed to set window title:', e);
-        }
     }
 }
