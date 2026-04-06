@@ -442,7 +442,8 @@ export const lastFMStorage = {
     },
 
     setScrobblePercentage(percentage) {
-        const validPercentage = Math.max(1, Math.min(100, parseInt(percentage, 10) || 75));
+        const parsed = parseInt(percentage, 10);
+        const validPercentage = Math.max(1, Math.min(100, isNaN(parsed) ? 75 : parsed));
         localStorage.setItem(this.SCROBBLE_PERCENTAGE_KEY, validPercentage.toString());
     },
 
@@ -948,9 +949,9 @@ export const visualizerSettings = {
 
     getPreset() {
         try {
-            return localStorage.getItem(this.PRESET_KEY) || 'butterchurn';
+            return localStorage.getItem(this.PRESET_KEY) || 'kawarp';
         } catch {
-            return 'butterchurn';
+            return 'kawarp';
         }
     },
 
@@ -1123,9 +1124,10 @@ export const equalizerSettings = {
     },
 
     setBandCount(count) {
+        const parsedCount = parseInt(count, 10);
         const validCount = Math.max(
             this.MIN_BANDS,
-            Math.min(this.MAX_BANDS, parseInt(count, 10) || this.DEFAULT_BAND_COUNT)
+            Math.min(this.MAX_BANDS, isNaN(parsedCount) ? this.DEFAULT_BAND_COUNT : parsedCount)
         );
         localStorage.setItem(this.BAND_COUNT_KEY, validCount.toString());
     },
@@ -1697,6 +1699,71 @@ export const equalizerSettings = {
     clearLastHeadphone() {
         localStorage.removeItem(this.AUTOEQ_LAST_HEADPHONE_KEY);
     },
+
+    // --- Graphic EQ (16-band) separate storage ---
+    GEQ_ENABLED_KEY: 'graphic-eq-enabled',
+    GEQ_GAINS_KEY: 'graphic-eq-gains',
+    GEQ_PREAMP_KEY: 'graphic-eq-preamp',
+
+    isGraphicEqEnabled() {
+        try {
+            return localStorage.getItem(this.GEQ_ENABLED_KEY) === 'true';
+        } catch {
+            return false;
+        }
+    },
+
+    setGraphicEqEnabled(enabled) {
+        try {
+            localStorage.setItem(this.GEQ_ENABLED_KEY, String(!!enabled));
+        } catch {
+            /* ignore */
+        }
+    },
+
+    getGraphicEqGains() {
+        try {
+            const stored = localStorage.getItem(this.GEQ_GAINS_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed) && parsed.length === 16) {
+                    return parsed.map((v) => (Number.isFinite(v) ? v : 0));
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+        return new Array(16).fill(0);
+    },
+
+    setGraphicEqGains(gains) {
+        try {
+            localStorage.setItem(this.GEQ_GAINS_KEY, JSON.stringify(gains));
+        } catch {
+            /* ignore */
+        }
+    },
+
+    getGraphicEqPreamp() {
+        try {
+            const val = localStorage.getItem(this.GEQ_PREAMP_KEY);
+            if (val !== null) {
+                const num = parseFloat(val);
+                return Number.isFinite(num) ? num : 0;
+            }
+            return 0;
+        } catch {
+            return 0;
+        }
+    },
+
+    setGraphicEqPreamp(db) {
+        try {
+            localStorage.setItem(this.GEQ_PREAMP_KEY, String(db));
+        } catch {
+            /* ignore */
+        }
+    },
 };
 
 export const monoAudioSettings = {
@@ -1765,7 +1832,8 @@ export const audioEffectsSettings = {
     },
 
     setSpeed(speed) {
-        const validSpeed = Math.max(0.01, Math.min(100, parseFloat(speed) || 1.0));
+        const parsed = parseFloat(speed);
+        const validSpeed = Math.max(0.01, Math.min(100, isNaN(parsed) ? 1.0 : parsed));
         localStorage.setItem(this.SPEED_KEY, validSpeed.toString());
     },
 
@@ -2385,7 +2453,8 @@ export const fontSettings = {
     },
 
     setFontSize(size) {
-        const validSize = Math.max(50, Math.min(200, parseInt(size, 10) || 100));
+        const parsed = parseInt(size, 10);
+        const validSize = Math.max(50, Math.min(200, isNaN(parsed) ? 100 : parsed));
         localStorage.setItem(this.FONT_SIZE_KEY, validSize.toString());
         this.applyFontSize();
         return validSize;
@@ -2653,18 +2722,18 @@ export const fontSettings = {
         document.documentElement.style.setProperty('--font-family', "'SF Pro Display', sans-serif");
     },
 
-    applyFont() {
+    async applyFont() {
         const config = this.getConfig();
 
         switch (config.type) {
             case 'google':
-                this.loadGoogleFont(config.family);
+                await this.loadGoogleFont(config.family);
                 break;
             case 'url':
-                this.loadFontFromUrl(config.url, config.family);
+                await this.loadFontFromUrl(config.url, config.family);
                 break;
             case 'uploaded':
-                this.loadUploadedFont(config.fontId);
+                await this.loadUploadedFont(config.fontId);
                 break;
             case 'preset':
             default:
