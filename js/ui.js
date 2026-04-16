@@ -29,6 +29,7 @@ import {
     contentBlockingSettings,
     settingsUiState,
     fullscreenCoverNoRoundSettings,
+    artistBannerSettings,
 } from './storage.js';
 import { db } from './db.js';
 import { getVibrantColorFromImage } from './vibrant-color.js';
@@ -49,7 +50,13 @@ import {
     createProjectCardHTML,
     createTrackFromSong,
 } from './tracker.js';
-import { trackSearch, trackChangeSort } from './analytics.js';
+
+let _isBlockedCopyright = (_c) => false;
+import('./content-filter.ts')
+    .then((m) => {
+        _isBlockedCopyright = m.isBlockedCopyright;
+    })
+    .catch(() => {});
 
 fontSettings.applyFont().catch(console.error);
 fontSettings.applyFontSize();
@@ -1279,18 +1286,35 @@ export class UIRenderer {
             const currentImage = document.getElementById('fullscreen-cover-image');
 
             if (videoCoverUrl) {
+                const isPaused = this.player?.activeElement?.paused ?? true;
                 if (currentImage.tagName === 'IMG') {
                     const video = document.createElement('video');
                     video.src = videoCoverUrl;
-                    video.autoplay = true;
+                    video.autoplay = !isPaused;
                     video.loop = true;
                     video.muted = true;
                     video.playsInline = true;
                     video.preload = 'auto';
                     video.className = currentImage.className;
+                    video.id = currentImage.id;
+                    video.style.objectFit = 'cover';
                     currentImage.replaceWith(video);
+                    if (!isPaused) {
+                        video.play().catch(() => {});
+                    }
                 } else if (currentImage.src !== videoCoverUrl) {
                     currentImage.src = videoCoverUrl;
+                    if (!isPaused) {
+                        currentImage.play().catch(() => {});
+                    } else {
+                        currentImage.pause();
+                    }
+                } else {
+                    if (!isPaused) {
+                        currentImage.play().catch(() => {});
+                    } else {
+                        currentImage.pause();
+                    }
                 }
             } else {
                 if (currentImage.tagName === 'VIDEO') {
@@ -1324,6 +1348,7 @@ export class UIRenderer {
             window.history.pushState({ fullscreen: true }, '', '#fullscreen');
         }
         const overlay = document.getElementById('fullscreen-cover-overlay');
+        const isAlreadyOpen = overlay && window.getComputedStyle(overlay).display !== 'none';
         const nextTrackEl = document.getElementById('fullscreen-next-track');
         const lyricsPane = document.getElementById('fullscreen-lyrics-pane');
         const lyricsContent = document.getElementById('fullscreen-lyrics-content');
@@ -1366,7 +1391,7 @@ export class UIRenderer {
             sidePanelManager.close();
         }
         const mainContent = document.querySelector('.main-content');
-        if (mainContent instanceof HTMLElement) {
+        if (mainContent instanceof HTMLElement && !isAlreadyOpen) {
             const computedStyles = window.getComputedStyle(mainContent);
             this.fullscreenMainContentOverflow = {
                 overflow: mainContent.style.overflow,
@@ -2024,8 +2049,8 @@ export class UIRenderer {
             shuffleBtn.classList.toggle('active', this.player.shuffleActive);
         };
 
-        repeatBtn.onclick = () => {
-            const mode = this.player.toggleRepeat();
+        repeatBtn.onclick = async () => {
+            const mode = await this.player.toggleRepeat();
             repeatBtn.classList.toggle('active', mode !== 0);
             if (mode === 2) {
                 repeatBtn.innerHTML = SVG_REPEAT_ONE(24);
@@ -2262,6 +2287,7 @@ export class UIRenderer {
             });
 
             this.player.activeElement.addEventListener('volumechange', updateFsVolumeUI);
+            window.addEventListener('volume-change', updateFsVolumeUI);
             updateFsVolumeUI();
         }
 
@@ -2372,6 +2398,72 @@ export class UIRenderer {
             hostControls.style.display = 'none';
             loginBtn.onclick = () => navigate('/account');
         }
+    }
+
+    async renderResetPasswordPage() {
+        await this.showPage('reset-password');
+        const form = document.getElementById('reset-password-form');
+        const errorEl = document.getElementById('reset-password-error');
+        const successEl = document.getElementById('reset-password-success');
+        const btn = document.getElementById('reset-password-submit-btn');
+        const btnText = document.getElementById('reset-password-btn-text');
+        const spinner = document.getElementById('reset-password-btn-spinner');
+        const passwordInput = document.getElementById('reset-password-input');
+        const confirmInput = document.getElementById('reset-password-confirm');
+
+        if (!form) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const userId = params.get('userId');
+        const secret = params.get('secret');
+
+        if (!userId || !secret) {
+            errorEl.textContent = 'Invalid or missing password reset link.';
+            errorEl.style.display = 'block';
+            form.style.display = 'none';
+            return;
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            const password = passwordInput.value;
+            const confirm = confirmInput.value;
+
+            if (password !== confirm) {
+                errorEl.textContent = 'Passwords do not match.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                btnText.style.display = 'none';
+                spinner.style.display = 'block';
+
+                await authManager.resetPassword(userId, secret, password, confirm);
+
+                successEl.textContent = 'Password reset successfully. Opening login...';
+                successEl.style.display = 'block';
+                form.style.display = 'none';
+
+                setTimeout(() => {
+                    const authModal = document.getElementById('email-auth-modal');
+                    if (authModal) {
+                        authModal.classList.add('active');
+                    }
+                }, 2000);
+            } catch (error) {
+                errorEl.textContent = error.message || 'Failed to reset password. Please try again.';
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                spinner.style.display = 'none';
+            }
+        };
     }
 
     async renderPartyDetailPage(id) {
@@ -2915,13 +3007,22 @@ export class UIRenderer {
     }
 
     async getSeeds() {
+        try {
+            const { smartRecommendations } = await import('./smart-recommendations.js');
+            const { autoplaySettings } = await import('./storage.js');
+            if (autoplaySettings.isSmartRecsEnabled()) {
+                const smartSeeds = await smartRecommendations.getSmartSeeds(50);
+                if (smartSeeds.length > 0) return smartSeeds;
+            }
+        } catch (e) {
+            console.warn('Smart seeds failed, using basic seeds:', e);
+        }
+
         const history = await db.getHistory();
         const favorites = await db.getFavorites('track');
         const playlists = await db.getPlaylists(true);
         const playlistTracks = playlists.flatMap((p) => p.tracks || []);
 
-        // Prioritize: Playlists > Favorites > History
-        // Take random samples from each to form seeds
         const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
         const combined = [
@@ -2955,7 +3056,7 @@ export class UIRenderer {
             if (forceRefresh || songsContainer.children.length === 0) {
                 songsContainer.innerHTML = this.createSkeletonTracks(10, true);
             } else if (!songsContainer.querySelector('.skeleton')) {
-                return; // Already loaded
+                return;
             }
 
             try {
@@ -2972,10 +3073,21 @@ export class UIRenderer {
                     ...history.map((t) => t.id),
                 ]);
 
-                const recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
+                let recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
                     skipCache: forceRefresh,
                     knownTrackIds: knownTrackIds,
                 });
+
+                try {
+                    const { smartRecommendations } = await import('./smart-recommendations.js');
+                    const { autoplaySettings } = await import('./storage.js');
+                    if (autoplaySettings.isSmartRecsEnabled()) {
+                        recommendedTracks = smartRecommendations.filterRecommendations(recommendedTracks);
+                        recommendedTracks = smartRecommendations.rankRecommendations(recommendedTracks);
+                    }
+                } catch (e) {
+                    console.warn('Smart filtering failed for home songs:', e);
+                }
 
                 const filteredTracks = await this.filterUserContent(recommendedTracks, 'track');
                 this.lastRecommendedTracks = filteredTracks;
@@ -3605,9 +3717,12 @@ export class UIRenderer {
                 finalAlbums = Array.from(albumMap.values());
             }
 
+            finalTracks = finalTracks.filter((t) => !_isBlockedCopyright(t.copyright));
+            finalVideos = finalVideos.filter((t) => !_isBlockedCopyright(t.copyright));
+            finalAlbums = finalAlbums.filter((t) => !_isBlockedCopyright(t.copyright));
+
             // Track search with results
             const totalResults = finalTracks.length + finalArtists.length + finalAlbums.length + finalPlaylists.length;
-            trackSearch(query, totalResults);
 
             if (finalTracks.length) {
                 await this.renderListWithTracks(tracksContainer, finalTracks, true, false, false, true);
@@ -3800,6 +3915,22 @@ export class UIRenderer {
             const { album, tracks } = await this.api.getAlbum(albumId, provider);
             this.currentAlbumId = albumId;
 
+            if (_isBlockedCopyright(album.copyright)) {
+                imageEl.src = '';
+                imageEl.style.backgroundColor = 'transparent';
+                titleEl.textContent = '';
+                metaEl.textContent = '';
+                prodEl.textContent = '';
+                rateCriticsEl.textContent = '';
+                rateUsersEl.textContent = '';
+                tracklistContainer.innerHTML = '';
+                if (playBtn) playBtn.style.display = 'none';
+                if (dlBtn) dlBtn.style.display = 'none';
+                document.getElementById('page-album').innerHTML =
+                    '<p style="padding: 2rem; color: var(--muted-foreground);">This content is unavailable due to a DMCA notice.</p>';
+                return;
+            }
+
             const videoCoverUrl = album.videoCoverUrl || null;
 
             if (!videoCoverUrl && tracks.length > 0) {
@@ -3899,7 +4030,7 @@ export class UIRenderer {
             async function fetchAotyWorker(album, artist) {
                 try {
                     const response = await fetch(
-                        `https://aoty-critics.samidy.workers.dev/?artist=${artist}&album=${album}`
+                        `https://aoty-api.hnh65483.workers.dev/?artist=${artist}&album=${album}`
                     );
                     const data = await response.json();
 
@@ -4776,6 +4907,16 @@ export class UIRenderer {
         await this.showPage('artist');
         this.currentArtistId = artistId;
 
+        const bannerContainer = document.getElementById('artist-detail-banner-container');
+        if (bannerContainer) {
+            const oldVideo = bannerContainer.querySelector('video');
+            if (oldVideo && oldVideo._hls) {
+                oldVideo._hls.destroy();
+            }
+            bannerContainer.innerHTML = '';
+            bannerContainer.style.opacity = '0';
+        }
+
         const imageEl = document.getElementById('artist-detail-image');
         const nameEl = document.getElementById('artist-detail-name');
         const metaEl = document.getElementById('artist-detail-meta');
@@ -4823,6 +4964,39 @@ export class UIRenderer {
 
         try {
             const artist = await this.api.getArtist(artistId, provider);
+
+            const currentId = this.currentArtistId;
+            this.api
+                .getArtistBanner(artist.name)
+                .then(async (banner) => {
+                    if (this.currentArtistId !== currentId) return;
+
+                    if (banner && banner.hlsUrl && bannerContainer) {
+                        const video = document.createElement('video');
+                        video.autoplay = true;
+                        video.loop = true;
+                        video.muted = true;
+                        video.playsInline = true;
+                        video.setAttribute('muted', '');
+                        video.setAttribute('autoplay', '');
+                        video.setAttribute('playsinline', '');
+                        video.style.opacity = '1';
+
+                        try {
+                            await this.setupHlsVideo(video, banner, null);
+                            if (this.currentArtistId === currentId) {
+                                bannerContainer.appendChild(video);
+                                bannerContainer.style.opacity = '1';
+                                video.play().catch(() => {});
+                            }
+                        } catch (e) {
+                            console.warn('Failed to setup artist banner video:', e);
+                        }
+                    }
+                })
+                .catch((e) => {
+                    console.warn('Failed to fetch artist banner:', e);
+                });
 
             // Handle Biography
             if (bioEl) {
@@ -5051,6 +5225,10 @@ export class UIRenderer {
                     socialsEl.innerHTML = links.map((link) => this.createSocialLinkHTML(link)).join('');
                 }
             });
+
+            artist.tracks = artist.tracks.filter((t) => !_isBlockedCopyright(t.copyright));
+            artist.albums = artist.albums.filter((t) => !_isBlockedCopyright(t.copyright));
+            if (artist.eps) artist.eps = artist.eps.filter((t) => !_isBlockedCopyright(t.copyright));
 
             await this.renderListWithTracks(tracksContainer, artist.tracks, true);
 
@@ -5673,7 +5851,6 @@ export class UIRenderer {
                 const handleSort = async (ev) => {
                     const li = ev.target.closest('li');
                     if (li && li.dataset.sort) {
-                        trackChangeSort(li.dataset.sort);
                         await onSort(li.dataset.sort);
                         closeMenu();
                     }
@@ -6003,6 +6180,12 @@ export class UIRenderer {
             track = await this.api.getTrackMetadata(trackId);
             this.currentTrackPageId = track.id;
 
+            if (_isBlockedCopyright(track.copyright)) {
+                document.getElementById('page-track').innerHTML =
+                    '<p style="padding: 2rem; color: var(--muted-foreground);">This content is unavailable due to a DMCA notice.</p>';
+                return;
+            }
+
             let videoCoverUrl = track.videoUrl || track.videoCoverUrl || track.album?.videoCoverUrl || null;
 
             if (!videoCoverUrl && (track.album || track.type === 'video')) {
@@ -6105,6 +6288,7 @@ export class UIRenderer {
 
             playBtn.onclick = () => {
                 this.player.setQueue([track], 0);
+                this.player.enableAutoplay();
                 this.player.playTrackFromQueue();
             };
 
