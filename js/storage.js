@@ -5,8 +5,7 @@ import { SVG_RIGHT_ARROW } from './icons';
 export const apiSettings = {
     STORAGE_KEY: 'monochrome-api-instances-v9',
     INSTANCES_URLS: [
-        'https://tidal-uptime.jiffy-puffs-1j.workers.dev/',
-        'https://tidal-uptime.props-76styles.workers.dev/',
+        'https://tidal-uptime.geeked.wtf',
     ],
     defaultInstances: { api: [], streaming: [] },
     userInstances: null,
@@ -3118,6 +3117,55 @@ export const modalSettings = {
                 modal.classList.remove('active');
             }
         });
+    },
+};
+
+export const devModeSettings = {
+    STORAGE_KEY: 'dev-mode-enabled',
+    URL_KEY: 'dev-mode-url',
+
+    isEnabled() {
+        try {
+            return localStorage.getItem(this.STORAGE_KEY) === 'true';
+        } catch {
+            return false;
+        }
+    },
+
+    setEnabled(enabled) {
+        localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
+    },
+
+    getUrl() {
+        try {
+            return localStorage.getItem(this.URL_KEY) || 'http://127.0.0.1:8000';
+        } catch {
+            return 'http://127.0.0.1:8000';
+        }
+    },
+
+    setUrl(url) {
+        localStorage.setItem(this.URL_KEY, url);
+    },
+};
+
+export const serverDisruptionSettings = {
+    STORAGE_KEY: 'server-disruption-dismissed',
+
+    isDismissed() {
+        try {
+            return localStorage.getItem(this.STORAGE_KEY) === 'true';
+        } catch {
+            return false;
+        }
+    },
+
+    dismiss() {
+        localStorage.setItem(this.STORAGE_KEY, 'true');
+    },
+
+    reset() {
+        localStorage.removeItem(this.STORAGE_KEY);
     },
 };
 

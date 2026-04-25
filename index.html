@@ -2,6 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
+        <meta name="referrer" content="no-referrer" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <title>Monochrome</title>
         <link rel="canonical" href="https://monochrome.tf/" />
@@ -116,6 +117,7 @@
     <body>
         <audio id="audio-player" crossorigin="anonymous" style="display: none"></audio>
         <video id="video-player" crossorigin="anonymous" style="display: none"></video>
+
         <div id="context-menu">
             <ul>
                 <li data-action="shuffle-play-card" data-type-filter="album,playlist,mix,user-playlist">
@@ -1678,6 +1680,7 @@
                             <use svg="!lucide/chevron-left.svg" size="20" />
                         </button>
                     </div>
+
                     <nav class="sidebar-nav main">
                         <ul>
                             <li class="nav-item" id="sidebar-nav-home">
@@ -1725,7 +1728,21 @@
                                 <!-- Pinned should be injected here -->
                             </ul>
                         </nav>
+
                         <div class="sidebar-nav-bottom">
+                            <div id="server-disruption-banner" class="server-disruption-sidebar" style="display: none">
+                                <span class="disruption-icon">&#9888;</span>
+                                <span
+                                    >Services are currently unstable. <br /><br />Use the extension
+                                    <a href="https://github.com/monochrome-music/monochrome/tree/main/extension"
+                                        >here</a
+                                    >
+                                    for the best experience.</span
+                                >
+                                <button id="dismiss-disruption-btn" class="disruption-dismiss" title="Dismiss">
+                                    &times;
+                                </button>
+                            </div>
                             <nav class="sidebar-nav bottom">
                                 <ul>
                                     <li class="nav-item" id="sidebar-nav-about-bottom">
@@ -1794,6 +1811,9 @@
                         </button>
                         <div id="search-history" class="search-history" style="display: none"></div>
                     </form>
+                    <button id="help-btn" class="btn-icon" title="Help">
+                        <use svg="!lucide/help-circle.svg" size="24" />
+                    </button>
                     <div class="header-account-control">
                         <button
                             id="header-account-btn"
@@ -4050,7 +4070,7 @@
                                     </div>
                                     <select id="streaming-quality-setting">
                                         <option value="auto">Auto (Adaptive)</option>
-                                        <option value="HI_RES_LOSSLESS">Hi-Res Lossless (up to 24-bit/192kHz)</option>
+                                        <option value="HI_RES_LOSSLESS">Hi-Res Lossless (24-bit)</option>
                                         <option value="LOSSLESS">Lossless (16-bit)</option>
                                         <option value="HIGH">AAC 320kbps</option>
                                         <option value="LOW">AAC 96kbps</option>
@@ -5539,6 +5559,42 @@
 
                     <div class="settings-tab-content" id="settings-tab-instances">
                         <div class="settings-list">
+                            <div class="settings-group">
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label" style="color: #f59e0b">Dev Mode</span>
+                                        <span class="description"
+                                            >Route all API requests through a local Tidal HiFi API server. Requires a
+                                            compatible server running at the specified URL.</span
+                                        >
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="dev-mode-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item" id="dev-mode-url-setting" style="display: none">
+                                    <div class="info">
+                                        <span class="label">Dev Mode API URL</span>
+                                        <span class="description">The URL of your local Tidal HiFi API instance</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        id="dev-mode-url-input"
+                                        placeholder="http://127.0.0.1:8000"
+                                        style="
+                                            width: 220px;
+                                            padding: 0.35rem 0.5rem;
+                                            border: 1px solid var(--border);
+                                            border-radius: var(--radius-md);
+                                            background: var(--card);
+                                            color: var(--foreground);
+                                            font-size: 0.8rem;
+                                        "
+                                    />
+                                </div>
+                            </div>
+
                             <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">

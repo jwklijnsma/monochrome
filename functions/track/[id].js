@@ -70,8 +70,7 @@ class TidalAPI {
 class ServerAPI {
     constructor() {
         this.INSTANCES_URLS = [
-            'https://tidal-uptime.jiffy-puffs-1j.workers.dev/',
-            'https://tidal-uptime.props-76styles.workers.dev/',
+            'https://tidal-uptime.geeked.wtf',
         ];
         this.apiInstances = null;
     }
@@ -171,7 +170,10 @@ const _cr = [
     'ZXNzZWw=', // essel
     'emluZGFnaQ==', // zindagi
 ].map(atob);
-const _isBlockedCopyright = (c) => !!c && _cr.some((s) => c.toLowerCase().includes(s));
+const _isBlockedCopyright = (c) => {
+    const text = typeof c === 'string' ? c : c?.text;
+    return !!text && _cr.some((s) => text.toLowerCase().includes(s));
+};
 
 export async function onRequest(context) {
     const { request, params, env } = context;
